@@ -31,6 +31,7 @@ cover
 .DS_Store
 .eggs
 .env
+./docker/.env
 .envrc
 .idea
 .mypy_cache

@@ -43,10 +43,7 @@ x-common-build: &common-build
 services:
   nginx:
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     image: nginx:latest
     container_name: superset_nginx
     restart: unless-stopped
@@ -69,10 +66,7 @@ services:
 
   db:
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     image: postgres:16
     container_name: superset_db
     restart: unless-stopped
@@ -84,10 +78,7 @@ services:
 
   superset:
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     build:
       <<: *common-build
     container_name: superset_app
@@ -144,10 +135,7 @@ services:
     container_name: superset_init
     command: ["/app/docker/docker-init.sh"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     depends_on:
       db:
         condition: service_started
@@ -181,10 +169,7 @@ services:
     container_name: superset_node
     command: ["/app/docker/docker-frontend.sh"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     volumes: *superset-volumes
 
   superset-worker:
@@ -193,10 +178,7 @@ services:
     container_name: superset_worker
     command: ["/app/docker/docker-bootstrap.sh", "worker"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     environment:
       CELERYD_CONCURRENCY: 2
     restart: unless-stopped
@@ -219,10 +201,7 @@ services:
     container_name: superset_worker_beat
     command: ["/app/docker/docker-bootstrap.sh", "beat"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     restart: unless-stopped
     depends_on:
       - superset-worker
@@ -237,10 +216,7 @@ services:
     container_name: superset_tests_worker
     command: ["/app/docker/docker-bootstrap.sh", "worker"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     profiles:
       - optional
     environment:

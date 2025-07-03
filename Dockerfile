@@ -36,6 +36,7 @@ ARG DEV_MODE="false"           # Skip frontend build in dev mode
 ENV DEV_MODE=${DEV_MODE}
 
 COPY docker/ /app/docker/
+COPY --chmod=755 docker/requirements-local.txt /app/docker/
 # Arguments for build configuration
 ARG NPM_BUILD_CMD="build"
 
@@ -89,6 +90,8 @@ RUN --mount=type=cache,target=/root/.npm \
 
 # Copy translation files
 COPY superset/translations /app/superset/translations
+COPY --chmod=755 docker/*.txt /app/docker/
+# COPY --chmod=755 docker/requirements-local.txt /app/docker/
 
 # Build the frontend if not in dev mode
 RUN if [ "$BUILD_TRANSLATIONS" = "true" ]; then \
@@ -113,6 +116,7 @@ RUN useradd --user-group -d ${SUPERSET_HOME} -m --no-log-init --shell /bin/bash 
 
 # Some bash scripts needed throughout the layers
 COPY --chmod=755 docker/*.sh /app/docker/
+COPY --chmod=755 docker/*.txt /app/docker/
 
 RUN pip install --no-cache-dir --upgrade uv
 
@@ -129,6 +133,7 @@ ARG BUILD_TRANSLATIONS
 ENV BUILD_TRANSLATIONS=${BUILD_TRANSLATIONS}
 
 # Install Python dependencies using docker/pip-install.sh
+COPY --chmod=755 docker/*.txt /app/docker/
 COPY requirements/translations.txt requirements/
 RUN --mount=type=cache,target=/root/.cache/uv \
     . /app/.venv/bin/activate && /app/docker/pip-install.sh --requires-build-essential -r requirements/translations.txt
@@ -153,6 +158,7 @@ ENV SUPERSET_HOME="/app/superset_home" \
     SUPERSET_PORT="8088"
 
 # Copy the entrypoints, make them executable in userspace
+COPY --chmod=755 docker/*.txt /app/docker/
 COPY --chmod=755 docker/entrypoints /app/docker/entrypoints
 
 WORKDIR /app
@@ -219,8 +225,14 @@ FROM python-common AS lean
 
 # Install Python dependencies using docker/pip-install.sh
 COPY requirements/base.txt requirements/
+COPY --chmod=755 docker/*.txt /app/docker/
 RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
     /app/docker/pip-install.sh --requires-build-essential -r requirements/base.txt
+
+RUN pip install --no-cache-dir -r /app/docker/requirements-local.txt
+COPY --chmod=755 docker/*.txt /app/docker/
+RUN pip install --no-cache-dir --upgrade uv
+
 # Install the superset package
 RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
     uv pip install .
@@ -240,10 +252,18 @@ RUN /app/docker/apt-install.sh \
     default-libmysqlclient-dev
 
 # Copy development requirements and install them
+COPY --chmod=755 docker/*.txt /app/docker/
+# COPY --chmod=755 /app/docker/requirements-local.txt /app/docker/
+# COPY --chmod=755 docker/requirements-local.txt /app/docker/
 COPY requirements/*.txt requirements/
 # Install Python dependencies using docker/pip-install.sh
 RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
     /app/docker/pip-install.sh --requires-build-essential -r requirements/development.txt
+
+COPY --chmod=755 docker/*.txt /app/docker/
+RUN pip install --no-cache-dir -r /app/docker/requirements-local.txt
+RUN pip install --no-cache-dir --upgrade uv
+
 # Install the superset package
 RUN --mount=type=cache,target=${SUPERSET_HOME}/.cache/uv \
     uv pip install .
@@ -258,6 +278,7 @@ USER superset
 ######################################################################
 FROM lean AS ci
 USER root
+COPY --chmod=755 docker/*.txt /app/docker/
 RUN uv pip install .[postgres]
 USER superset
 CMD ["/app/docker/entrypoints/docker-ci.sh"]

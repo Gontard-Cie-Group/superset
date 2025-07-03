@@ -53,6 +53,12 @@ else
   uv pip install --no-cache-dir "${ARGS[@]}"
 fi
 
+# Install additional Python packages from requirements-local.txt if it exists
+if [[ -f "/app/docker/requirements-local.txt" ]]; then
+  echo "Installing local Python packages from requirements-local.txt..."
+  uv pip install -r "/app/docker/requirements-local.txt"
+fi
+
 # Remove build-essential if it was installed
 if $REQUIRES_BUILD_ESSENTIAL; then
   echo "Removing build-essential to keep the image lean..."

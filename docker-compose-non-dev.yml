@@ -21,6 +21,9 @@
 # create you own docker environment file (docker/.env) with your own
 # unique random secure passwords and SECRET_KEY.
 # -----------------------------------------------------------------------
+x-superset-depends-on: &superset-depends-on
+  - db
+  - redis
 x-superset-volumes:
   &superset-volumes # /app/pythonpath_docker will be appended to the PYTHONPATH in the final container
   - ./docker:/app/docker
@@ -42,23 +45,21 @@ services:
 
   db:
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     image: postgres:16
     container_name: superset_db
     restart: unless-stopped
+    privileged: true
+    ports:
+      - 5432:5432
     volumes:
       - db_home:/var/lib/postgresql/data
+      - /mnt/ramdisk:/mnt/ramdisk  # Mount the 2G RAM-disk
       - ./docker/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
 
   superset:
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     build:
       <<: *common-build
     container_name: superset_app
@@ -78,10 +79,7 @@ services:
       <<: *common-build
     command: ["/app/docker/docker-init.sh"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     depends_on:
       db:
         condition: service_started
@@ -98,10 +96,7 @@ services:
     container_name: superset_worker
     command: ["/app/docker/docker-bootstrap.sh", "worker"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     restart: unless-stopped
     depends_on:
       superset-init:
@@ -115,16 +110,74 @@ services:
           "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
         ]
 
+  superset-worker-1:
+    env_file:
+      - docker/.env
+    environment:
+      - GLOBAL_ASYNC_QUERIES_JWT_SECRET=206597494bdcc932cd5d5069a2ea1ab8fbffa80c4e76146e39b2bfd0dc8c282f50c5b32490b8>
+    build:
+      <<: *common-build
+    container_name: superset_worker_1
+    command: celery --app=superset.tasks.celery_app:app worker --pool=prefork -O fair -c 4 --hostname=worker_sq1@%h
+    restart: unless-stopped
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
+        ]
+
+  superset-worker-2:
+    env_file:
+      - docker/.env
+    environment:
+      - GLOBAL_ASYNC_QUERIES_JWT_SECRET=206597494bdcc932cd5d5069a2ea1ab8fbffa80c4e76146e39b2bfd0dc8c282f50c5b32490b8>
+    build:
+      <<: *common-build
+    container_name: superset_worker_2
+    command: celery --app=superset.tasks.celery_app:app worker --pool=prefork -O fair -c 4 --hostname=worker_sq2@%h
+    restart: unless-stopped
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
+        ]
+
+  superset-worker-3:
+    env_file:
+      - docker/.env
+    environment:
+      - GLOBAL_ASYNC_QUERIES_JWT_SECRET=206597494bdcc932cd5d5069a2ea1ab8fbffa80c4e76146e39b2bfd0dc8c282f50c5b32490b8>
+    build:
+      <<: *common-build
+    container_name: superset_worker_3
+    command: celery --app=superset.tasks.celery_app:app worker --pool=prefork -O fair -c 4 --hostname=worker_sq3@%h
+    restart: unless-stopped
+    depends_on: *superset-depends-on
+    user: "root"
+    volumes: *superset-volumes
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
+        ]
+
+
   superset-worker-beat:
     build:
       <<: *common-build
     container_name: superset_worker_beat
     command: ["/app/docker/docker-bootstrap.sh", "beat"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
     restart: unless-stopped
     depends_on:
       superset-init:
